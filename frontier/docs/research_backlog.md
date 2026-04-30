@@ -26,6 +26,36 @@ Current immediate queue:
 4. Test the `#1948` slope/GPTQ deltas on top of `#1855`.
 5. Promote only clear winners to 8xH100 3-seed confirmation.
 
+## April 30, 2026 Open Frontier Addendum
+
+The strongest clean open PR found after the `#1855` merge is now PR `#2014`: `SP8192 CaseOps + Progressive 3k Context Growth + Short-Doc Score-First TTT`.
+
+Reported result:
+- 3-seed mean `1.05759252` post-TTT BPB
+- 3-seed mean `2.31441043` val loss
+- max artifact `15,984,387` bytes
+- max train wallclock `596.025s`
+- max validation-data TTT pass `572.4s`
+- full validation coverage in all logs: `val_tokens == target_tokens == 47,853,343`
+
+What changed versus `#1855`:
+- progressive train context schedule: `1024@0.100,2048@0.700,3072@1.000`
+- final train/eval/TTT context at `3072`
+- `EVAL_INCLUDE_TAIL=1` so diagnostic eval and TTT eval cover the full target stream
+- long-context no-Q/V TTT: `TTT_MASK=no_qv`, `TTT_Q_LORA=0`, `TTT_V_LORA=0`
+- short-document score-first TTT chunks: `256:8,2000:24`
+- `TTT_LOCAL_LR_MULT=0.75`
+- one phased TTT pass with `PHASED_TTT_PREFIX_DOCS=2500`
+- `QK_GAIN_INIT=5.25`
+- AWQ-lite and asymmetric logit rescale inherited from the late-April quantization line
+
+Updated immediate queue:
+1. Make `frontier/lanes/pr2014` the main open-frontier reproduction lane.
+2. Use `frontier/lanes/pr1855` as the accepted leaderboard control.
+3. Run cheap 1-GPU `#2014` pre-quant and quant smoke tests before any full run.
+4. Only after #2014 reproduces, test low-byte deltas: PR `#1948` reverse-Cholesky GPTQ, LeakyReLU-square slope `0.3`, stricter GPTQ reserve, short-doc TTT variants, and progressive-context schedule variants.
+5. Defer PR `#1967` n-gram tilt unless its precompute path is timer-inclusive and clean under issue `#1017`.
+
 ## What This Backlog Is Based On
 
 This backlog was refreshed on **April 28, 2026** against:

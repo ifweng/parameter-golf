@@ -21,6 +21,7 @@ Layout:
 - `cloud/candidate_pack.md`: exact or near-exact 8xH100 candidate commands and gates
 - `lanes/pr1787/`: frozen reproduction lane for the previous clean frontier control
 - `lanes/pr1855/`: frozen reproduction lane for the current accepted leaderboard target
+- `lanes/pr2014/`: frozen reproduction lane for the current strongest clean open frontier target
 - `workdirs/`: untracked outputs for local and cloud runs
 
 Rules:

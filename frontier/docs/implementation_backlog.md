@@ -4,34 +4,33 @@ Ordered to maximize signal before cloud spend.
 
 ## Immediate
 
-1. Keep `frontier/cuda/train_gpt_frontier.py` as the only readable CUDA source of truth.
-2. Finish low-risk same-family ports that do not require a full architecture rewrite:
-   - loader improvements from `#1532`
-   - schedule knobs from `#1560`
-   - env surface for Track B tuning and artifact routing
-3. Preserve ancestor reproducibility while making these changes.
+1. Keep `frontier/lanes/pr2014/upstream/train_gpt.py` frozen as the exact open-frontier reproduction source.
+2. Use `frontier/lanes/pr2014/configs/pr2014.env` for reproducible cloud runs and config-only smoke tests.
+3. Run the PR #2014 static checker and cheap 1-GPU smoke tests before any full 8xH100 run.
+4. Preserve `frontier/lanes/pr1855` as the accepted leaderboard control.
 
 ## Next
 
-1. Port the `#1530/#1560` family:
-   - variable-length attention
-   - fused MLP path
-   - doc-independent score-first TTT
-2. Validate legality boundaries in code comments and notebook entries as features land.
-3. Prepare a first cloud replay candidate from the new mainline.
+1. Create config overlays or separate lanes for low-byte #2014 deltas:
+   - PR #1948 reverse-Cholesky GPTQ
+   - PR #1948 LeakyReLU-square slope `0.3`
+   - stricter GPTQ reserve values, likely `8s` or `12s`
+   - short-doc TTT schedule variants
+   - progressive 3k context schedule variants
+2. Validate legality boundaries in code comments, metrics summaries, and the experiment ledger.
+3. Promote only one to three candidates to full 8xH100 confirmation.
 
 ## After the mainline is stable
 
-1. Branch into the `#1518` family:
-   - asymmetric two-lane routing
-   - wider recurrence over layers `3-5`
-   - per-pass embeddings
-2. Evaluate whether Tap-In V6 should enter the project or stay as a deferred eval-only path.
-3. Revisit `#1552` RecurLoRA only if the recurrence path is stable and under budget.
+1. Revisit legal eval-time adaptation variants if they are still score-first and single-pass.
+2. Explore compression-aware or quantization-aware training only after the #2014 reproduction is stable.
+3. Consider architecture pivots only as non-leaderboard research branches.
 
 ## Deferred research branches
 
-1. `#1578` tokenizer branch:
-   full casefold tokenizer + retokenized dataset + legality review
-2. `#1576` GDN-Hybrid branch:
-   separate architecture effort, not an incremental extension of the current SP8192 Track B line
+1. PR #1967 n-gram tilt:
+   defer unless all precompute and scoring are timer-inclusive and accepted under issue `#1017`
+2. Mamba/SSM or JEPA/text-diffusion branches:
+   useful for a noticeable research implementation, not the first leaderboard push
+3. Alternative reversible tokenization beyond CaseOps:
+   high upside but high compliance burden

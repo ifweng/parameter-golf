@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Parse PR #1787 cloud logs into a compact metrics summary."""
+"""Parse frontier cloud logs into compact JSON and Markdown summaries."""
 
 from __future__ import annotations
 
@@ -33,6 +33,11 @@ PATTERNS = {
         r"Total submission size quantized\+(?:brotli|pergroup|lzma): (?P<value>[0-9]+) bytes"
     ),
     "code_bytes": re.compile(r"Code size \(compressed\): (?P<value>[0-9]+) bytes"),
+    "val_tokens": re.compile(r"^val_tokens: (?P<value>[0-9]+)$", re.MULTILINE),
+    "target_tokens": re.compile(r"\btarget_tokens:(?P<value>[0-9]+)\b"),
+    "gptq_reserve": re.compile(
+        r"gptq:reserving (?P<reserve>[0-9.]+)s, effective=(?P<effective>[0-9.]+)ms"
+    ),
 }
 
 
@@ -47,10 +52,22 @@ def parse_log(path: Path, run_root: Path) -> dict[str, object]:
     seed = int(seed_match.group("seed")) if seed_match else None
     row: dict[str, object] = {"seed": seed, "log": str(path)}
 
-    for key in ["train_stop_ms", "steps", "artifact_bytes", "code_bytes"]:
+    for key in [
+        "train_stop_ms",
+        "steps",
+        "artifact_bytes",
+        "code_bytes",
+        "val_tokens",
+        "target_tokens",
+    ]:
         match = _last_match(PATTERNS[key], text)
         if match:
             row[key] = int(match.group("value"))
+
+    match = _last_match(PATTERNS["gptq_reserve"], text)
+    if match:
+        row["gptq_reserve_s"] = float(match.group("reserve"))
+        row["gptq_effective_train_ms"] = float(match.group("effective"))
 
     for key in ["pre_quant", "quantized", "post_ttt"]:
         match = _last_match(PATTERNS[key], text)
@@ -71,7 +88,14 @@ def parse_log(path: Path, run_root: Path) -> dict[str, object]:
             row["post_ttt_eval_ms"] = int(result["post_ttt_eval_time_ms"])
             row["post_ttt_source"] = str(result_path)
 
-    row["status"] = "complete" if "post_ttt_val_bpb" in row else "incomplete"
+    if "post_ttt_val_bpb" in row:
+        row["status"] = "complete"
+    elif "quantized_val_bpb" in row:
+        row["status"] = "quantized_only"
+    elif "pre_quant_val_bpb" in row:
+        row["status"] = "prequant_only"
+    else:
+        row["status"] = "incomplete"
     return row
 
 
@@ -133,13 +157,19 @@ def main() -> None:
         "seed",
         "status",
         "steps",
+        "pre_quant_val_loss",
         "pre_quant_val_bpb",
+        "quantized_val_loss",
         "quantized_val_bpb",
+        "post_ttt_val_loss",
         "post_ttt_val_bpb",
+        "val_tokens",
+        "target_tokens",
         "artifact_bytes",
         "code_bytes",
         "train_stop_ms",
         "post_ttt_eval_ms",
+        "gptq_reserve_s",
     ]
     print("\t".join(headers))
     for row in rows:
