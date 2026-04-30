@@ -19,6 +19,8 @@ Layout:
 - `logs/lab_notebook.md`: running experiment notebook
 - `logs/experiments.tsv`: leaderboard-style experiment ledger for scored runs
 - `cloud/candidate_pack.md`: exact or near-exact 8xH100 candidate commands and gates
+- `lanes/pr1787/`: frozen reproduction lane for the previous clean frontier control
+- `lanes/pr1855/`: frozen reproduction lane for the current accepted leaderboard target
 - `workdirs/`: untracked outputs for local and cloud runs
 
 Rules:

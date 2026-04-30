@@ -11,97 +11,88 @@ Promote a candidate only if all of the following hold locally or on cheap smoke 
 - the candidate beats the current internal best on the metric it is supposed to improve
 
 Compliance reference:
-- all candidate promotion checks must also satisfy [compliance_checklist.md](/Users/ifengwu/Projects/parameter-golf/frontier/docs/compliance_checklist.md)
+- all candidate promotion checks must also satisfy `frontier/docs/compliance_checklist.md`
 
 ## Current target hierarchy
 
-### Candidate 0: PR #1787 clean frontier reproduction
+### Candidate 0: PR #1855 accepted frontier reproduction
 
 Purpose:
-- establish the first real 8xH100 benchmark lane for the current frontier
-- reproduce a strong but still readable stack before adding newer SmearGate/LQER changes
+- reproduce the current accepted leaderboard stack before testing our own deltas
+- make the 1-GPU cloud setup produce durable metrics and artifacts
 
 Lane:
-- [PR1787 Reproduction Lane](/Users/ifengwu/Projects/parameter-golf/frontier/lanes/pr1787/README.md)
+- `frontier/lanes/pr1855/README.md`
 
 Command:
 
 ```bash
-CASEOPS_DATA_PATH=/workspace/data/datasets/fineweb10B_sp8192_caseops/datasets/datasets/fineweb10B_sp8192_lossless_caps_caseops_v1_reserved \
-RUN_ROOT=/workspace/runs/pr1787 \
+source /workspace/pr1855_data.env
+NPROC_PER_NODE=8 \
 SEEDS="42 0 1234" \
-bash frontier/lanes/pr1787/run_8xh100.sh
+RUN_ROOT=/workspace/runs/pr1855_3seed \
+bash frontier/lanes/pr1855/run_8xh100.sh
 ```
 
 Expected envelope:
 - track: `Track B`
+- upstream score: `1.06107587` post-TTT BPB, 3-seed mean
+- upstream artifact: about `15,901,919` bytes mean, max `15,907,550`
+- train time: about `599.5s`
+- eval time: about `455s` to `509s`
+- promotion gate: reproduce directionally with trusted CaseOps byte sidecar accounting, BOS-safe SmearGate, and all budgets intact
+
+Critical prerequisite:
+- a prepared CaseOps dataset with `fineweb_val_bytes_*.bin` sidecars
+- `lrzip` installed on the cloud image if `COMPRESSOR=pergroup`
+
+### Control: PR #1787 clean frontier reproduction
+
+Purpose:
+- preserve a readable previous-frontier control for regressions and ablations
+
+Lane:
+- `frontier/lanes/pr1787/README.md`
+
+Expected envelope:
 - upstream score: `1.06335` post-TTT BPB, 3-seed mean
 - upstream artifact: about `15,939,935` bytes mean
 - train time: about `599.5s`
 - eval time: about `416s` to `526s`
-- promotion gate: reproduce directionally with trusted CaseOps byte sidecar accounting and all budgets intact
+- promotion gate: use only as a regression/control lane now that #1855 is official top
 
-Critical prerequisite:
-- a prepared CaseOps dataset with `fineweb_val_bytes_*.bin` sidecars
-
-### Candidate 1: PR #1851/#1868 BOS-safe SmearGate + LQER stack
+### Candidate 1: PR #1948 low-risk deltas on top of PR #1855
 
 Purpose:
-- first attempt to match the strongest accepted-looking post-#1787 stack
-
-Target deltas after Candidate 0 works:
-- BOS-safe SmearGate
-- LQER asymmetric rank-4 quant correction
-- same CaseOps and phased score-first TTT path
-
-Expected envelope:
-- upstream score: `1.06145` post-TTT BPB, 3-seed mean
-- artifact: about `15.95 MB`
-- train time: about `599.5s`
-- eval time: about `480s` to `526s`
-- promotion gate: improve over our PR #1787 reproduction without any BOS/document-boundary leak
-
-### Candidate 2: PR #1855 hparam stack without risky compression first
-
-Purpose:
-- test the strongest public hparam deltas while avoiding the `lrzip` packaging question initially
+- test cheap changes that should not disturb compliance or model shape
 
 Target deltas:
-- `MLP_CLIP_SIGMAS=11.5`
-- `EMBED_CLIP_SIGMAS=14.0`
-- `WARMDOWN_FRAC=0.85`
-- `BETA2=0.99`
-- `TTT_BETA2=0.99`
-- `TTT_WEIGHT_DECAY=0.5`
-- `TTT_LORA_RANK=80`
-- `SPARSE_ATTN_GATE_SCALE=0.5`
-- `PHASED_TTT_PREFIX_DOCS=2500`
+- LeakyReLU-square negative slope `0.3`
+- GPTQ reverse-Cholesky speed/compliance implementation
+- stricter GPTQ reserve accounting, likely `8s` to `16s` in final confirmation
 
 Expected envelope:
-- target score: below our Candidate 1 reproduction
-- artifact: may be slightly larger than #1855 if Brotli-only compression is used
-- promotion gate: score improves enough to justify testing per-group compression
+- target score: must beat our internal #1855 reproduction on post-TTT BPB
+- artifact: should remain below `16,000,000` bytes
+- risk: low for slope, medium for GPTQ path changes because serialization/eval timing must be rechecked
 
-### Candidate 3: PR #1855 per-group compression
+### Candidate 2: PR #1984 LengthAwareTTT-style scheduling
 
 Purpose:
-- recover artifact headroom after the score path is stable
+- investigate the strongest recent single-seed signal only after the accepted #1855 lane is stable
 
 Target deltas:
-- tensor role grouping
-- similarity row ordering for hot tensors
-- per-group compression, possibly `lrzip`/ZPAQ if reproducibility risk is acceptable
+- length-aware/phased TTT scheduling changes
+- keep score-before-update and single-pass constraints explicit
 
 Expected envelope:
-- upstream score evidence: `1.06108` 3-seed mean, with later 6-sample discussion around `1.060755`
-- artifact: about `15.90 MB`
-- risk: dependency and packaging audit
-- promotion gate: exact decompression path is reproducible and clearly documentable
+- public evidence: single seed around `1.06018`, not a valid 3-seed record
+- risk: medium until reproduced cleanly
+- promotion gate: one seed must clearly improve before spending on 3-seed confirmation
 
 ## Deferred watchlist
 
-- non-CaseOps fallback from `#1874` if CaseOps assumptions change
-- Mamba/SSM branches:
-  interesting but not competitive with the current transformer frontier
-- PPM-D / byte-mixture lines:
-  defer until the C2 interpretation is settled
+- PR #1911 / PR #1738 pre-quant TTT line: defer as likely invalid under stricter C3 score-before-update interpretation
+- MHA/KV=8 path from PR #1987: defer because it trails PR #1855 and tightens eval time
+- Mamba/SSM branches: interesting research, not competitive with the current transformer frontier yet
+- PPM-D / byte-mixture lines: defer until the C2 interpretation is settled

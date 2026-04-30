@@ -30,7 +30,7 @@ PATTERNS = {
         r"eval_time:(?P<ms>[0-9]+)ms"
     ),
     "artifact_bytes": re.compile(
-        r"Total submission size quantized\+brotli: (?P<value>[0-9]+) bytes"
+        r"Total submission size quantized\+(?:brotli|pergroup|lzma): (?P<value>[0-9]+) bytes"
     ),
     "code_bytes": re.compile(r"Code size \(compressed\): (?P<value>[0-9]+) bytes"),
 }
@@ -75,6 +75,33 @@ def parse_log(path: Path, run_root: Path) -> dict[str, object]:
     return row
 
 
+def _format_cell(value: object) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, float):
+        return f"{value:.8f}"
+    return str(value)
+
+
+def write_markdown_table(
+    path: Path, run_name: str, rows: list[dict[str, object]], headers: list[str]
+) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    md_headers = ["run", *headers]
+    lines = [
+        "# Metrics Summary",
+        "",
+        f"Run root: `{run_name}`",
+        "",
+        "| " + " | ".join(md_headers) + " |",
+        "| " + " | ".join("---" for _ in md_headers) + " |",
+    ]
+    for row in rows:
+        cells = [run_name, *(_format_cell(row.get(header)) for header in headers)]
+        lines.append("| " + " | ".join(cells) + " |")
+    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--run-root", required=True, type=Path)
@@ -83,6 +110,12 @@ def main() -> None:
         type=Path,
         default=None,
         help="Optional output path. Defaults to RUN_ROOT/metrics_summary.json.",
+    )
+    parser.add_argument(
+        "--markdown-path",
+        type=Path,
+        default=None,
+        help="Optional Markdown output path. Defaults to RUN_ROOT/metrics_summary.md.",
     )
     args = parser.parse_args()
 
@@ -94,6 +127,7 @@ def main() -> None:
     summary_path = args.summary_path or args.run_root / "metrics_summary.json"
     summary_path.parent.mkdir(parents=True, exist_ok=True)
     summary_path.write_text(json.dumps(rows, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    markdown_path = args.markdown_path or args.run_root / "metrics_summary.md"
 
     headers = [
         "seed",
@@ -110,7 +144,9 @@ def main() -> None:
     print("\t".join(headers))
     for row in rows:
         print("\t".join(str(row.get(header, "")) for header in headers))
+    write_markdown_table(markdown_path, args.run_root.name, rows, headers)
     print(f"wrote {summary_path}")
+    print(f"wrote {markdown_path}")
 
 
 if __name__ == "__main__":

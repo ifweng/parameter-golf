@@ -8,6 +8,24 @@ This document captures the current research priorities for beating the leaderboa
 
 This is not the same as the implementation queue. It is the higher-level map of which ideas are worth investing in and why.
 
+## April 30, 2026 Leaderboard Update
+
+The official leaderboard has moved again. PR `#1902` merged the p-value progression update and PR `#1855` is now the accepted top public target at `1.0611` BPB.
+
+This changes the implementation order:
+- `#1855` is now the primary reproduction lane, not an audit-sensitive maybe
+- `#1787` remains valuable as a readable control and regression baseline
+- `#1911` / `#1738` pre-quant TTT results are not a main target because the author agreed they likely violate the stricter C3 score-before-update interpretation
+- `#1948` is useful for low-risk deltas after `#1855`: LeakyReLU-square slope `0.3`, GPTQ reverse-Cholesky, and stricter GPTQ reserve accounting
+- `#1984` is a promising single-seed LengthAwareTTT signal, but it should wait until our `#1855` reproduction is stable
+
+Current immediate queue:
+1. Run `frontier/lanes/pr1855/checks/check_pr1855_lane.py`.
+2. Run one 1-GPU `#1855` seed as a relative benchmark and artifact/eval smoke.
+3. Compare against the preserved `#1787` control only if the `#1855` lane fails or a delta regresses unexpectedly.
+4. Test the `#1948` slope/GPTQ deltas on top of `#1855`.
+5. Promote only clear winners to 8xH100 3-seed confirmation.
+
 ## What This Backlog Is Based On
 
 This backlog was refreshed on **April 28, 2026** against:
