@@ -3334,7 +3334,6 @@ def train_and_eval(h, device):
             compiled_model,
             compiled_forward_logits,
         )
-        del eval_model
     if h.ttt_enabled:
         if not ttt_eval_only:
             del compiled_model
