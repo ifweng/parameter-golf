@@ -15,33 +15,46 @@ Compliance reference:
 
 ## Current target hierarchy
 
-### Candidate 0: PR #2014 open frontier reproduction
+### Candidate 0: PR #1855 Exp01 AWQ-lite + AsymLogit
 
 Purpose:
-- reproduce the strongest clean open frontier stack before testing our own deltas
-- make the 1-GPU cloud setup produce durable metrics and artifacts on the current target
+- improve directly from the accepted PR #1855 stack without adopting the PR #2018 n-gram/gated-XSA base
+- reproduce the lowest-risk PR1855-derived upstream improvement from PR #2101 before testing our own deltas
 
 Lane:
-- `frontier/lanes/pr2014/README.md`
+- `frontier/lanes/pr1855_exp01_awqlite_asymlogit/README.md`
+
+Cheap smoke:
+
+```bash
+source /workspace/pr1855_exp01_data.env
+NPROC_PER_NODE=1 \
+SEEDS="42" \
+MAX_WALLCLOCK_SECONDS=120 \
+PREQUANT_ONLY=1 \
+COMPRESSOR=brotli \
+RUN_ROOT=/workspace/runs/pr1855_exp01_prequant_smoke \
+bash frontier/lanes/pr1855_exp01_awqlite_asymlogit/run_8xh100.sh
+```
 
 Command:
 
 ```bash
-source /workspace/pr2014_data.env
+source /workspace/pr1855_exp01_data.env
 NPROC_PER_NODE=8 \
-SEEDS="42 314 0" \
-RUN_ROOT=/workspace/runs/pr2014_3seed \
-bash frontier/lanes/pr2014/run_8xh100.sh
+SEEDS="42 0 1234" \
+RUN_ROOT=/workspace/runs/pr1855_exp01_3seed \
+bash frontier/lanes/pr1855_exp01_awqlite_asymlogit/run_8xh100.sh
 ```
 
 Expected envelope:
 - track: `Track B`
-- upstream score: `1.05759252` post-TTT BPB, 3-seed mean
-- upstream loss: `2.31441043` nats, 3-seed mean
-- upstream artifact: about `15,982,485` bytes mean, max `15,984,387`
-- train time: about `596.0s`
-- eval time: about `490s` to `572s`
-- promotion gate: reproduce directionally with trusted CaseOps byte sidecar accounting, full validation target coverage, BOS-safe SmearGate, score-first TTT, and all budgets intact
+- upstream score: `1.05845438` post-TTT BPB, 3-seed mean
+- upstream loss: `2.31721592` nats, 3-seed mean
+- upstream artifact: about `15,978,063` bytes mean, max `15,978,610`
+- train time: about `592.1s` plus GPTQ Hessian collection within the 600s data-access budget
+- eval time: about `508s` to `520s`
+- promotion gate: beat reproduced PR #1855 on post-TTT BPB while preserving trusted CaseOps byte sidecar accounting, full validation target coverage, BOS-safe SmearGate, score-first TTT, and all budgets intact
 
 Critical prerequisite:
 - a prepared CaseOps dataset with `fineweb_val_bytes_*.bin` sidecars
@@ -87,66 +100,55 @@ Expected envelope:
 - eval time: about `416s` to `526s`
 - promotion gate: use only as a regression/control lane now that #1855 is official top and #2014 is the open frontier
 
-### Candidate 1: PR #1948 low-risk deltas on top of PR #2014
+### Candidate 1: Small PR1855 Exp01 follow-up A/Bs
 
 Purpose:
-- test cheap changes that should not disturb compliance or model shape
+- test only cheap same-family knobs after Candidate 0 reproduces cleanly
 
 Lane:
-- `frontier/lanes/pr2014_exp01_slope03_rchgptq/README.md`
+- start from `frontier/lanes/pr1855_exp01_awqlite_asymlogit/README.md`
 
 Target deltas:
-- LeakyReLU-square negative slope `0.3`
-- GPTQ reverse-Cholesky speed/compliance implementation
+- config-only retune from PR #2060: `MATRIX_LR=0.028`, `LQER_RANK=2`, `LQER_ASYM_GROUP=32`, `LQER_TOP_K=4`, `TTT_LOCAL_LR_MULT=0.80`
+- optional `GRAD_CENTRALIZE=1` single-seed A/B only after the reproduction is stable
+- optional tiny `LABEL_SMOOTH` A/B only if gradient centralization is neutral or positive
 
 Cheap comparison commands:
 
 ```bash
-source /workspace/pr2014_data.env
-NPROC_PER_NODE=1 \
+source /workspace/pr1855_exp01_data.env
+NPROC_PER_NODE=8 \
 SEEDS="42" \
-MAX_WALLCLOCK_SECONDS=300 \
-TTT_ENABLED=0 \
-COMPRESSOR=brotli \
-RUN_ROOT=/workspace/runs/pr2014_baseline_quant_smoke \
-bash frontier/lanes/pr2014/run_8xh100.sh
-```
-
-```bash
-source /workspace/pr2014_data.env
-NPROC_PER_NODE=1 \
-SEEDS="42" \
-MAX_WALLCLOCK_SECONDS=300 \
-TTT_ENABLED=0 \
-COMPRESSOR=brotli \
-RUN_ROOT=/workspace/runs/pr2014_exp01_quant_smoke \
-bash frontier/lanes/pr2014_exp01_slope03_rchgptq/run_8xh100.sh
+MATRIX_LR=0.028 \
+LQER_RANK=2 \
+LQER_ASYM_GROUP=32 \
+LQER_TOP_K=4 \
+TTT_LOCAL_LR_MULT=0.80 \
+RUN_ROOT=/workspace/runs/pr1855_exp01_lqer_g32_top4_seed42 \
+bash frontier/lanes/pr1855_exp01_awqlite_asymlogit/run_8xh100.sh
 ```
 
 Expected envelope:
-- target score: must beat our internal #2014 reproduction on post-TTT BPB, or preserve BPB while materially improving timing/compliance margin
+- target score: must beat Candidate 0 on post-TTT BPB by enough to justify three-seed confirmation
 - artifact: should remain below `16,000,000` bytes
-- risk: low for slope, medium for GPTQ path changes because serialization/eval timing must be rechecked
+- risk: low to medium because the artifact margin is only about `21KB` in the reference run
 
-### Candidate 2: PR #2014 schedule search
+### Stopped: PR #2014 / reverse-Cholesky / slope 0.3 lane
 
 Purpose:
-- investigate the highest-probability same-family BPB improvements after the #2014 lane is stable
+- keep the prior work documented, but do not spend more cloud budget unless we need a forensic comparison
 
-Target deltas:
-- short-doc TTT schedule variants such as `128:8,512:16,2000:24`
-- progressive context schedule variants that move the 2k to 3k transition earlier or later
-- keep score-before-update, full validation-tail coverage, and single-pass constraints explicit
+Reason:
+- our local/cloud exp01 attempts produced worse BPB and tighter size/eval behavior than the PR1855-derived lane
+- reverse-Cholesky and slope `0.3` are no longer the least-effort path to improvement
 
-Expected envelope:
-- public evidence: #2014 3-seed mean `1.05759252`
-- risk: medium because the 8xH100 timing margin is already tight
-- promotion gate: one seed must clearly improve the #2014 control before spending on 3-seed confirmation
+Lane:
+- `frontier/lanes/pr2014_exp01_slope03_rchgptq/README.md`
 
 ## Deferred watchlist
 
 - PR #1911 / PR #1738 pre-quant TTT line: defer as likely invalid under stricter C3 score-before-update interpretation
-- PR #1967 n-gram tilt line: defer unless the precompute is timer-inclusive and remains under budget
+- PR #2018 / PR #1967 n-gram tilt line: user explicitly does not want this as the base; defer unless we open a separate high-risk lane
 - MHA/KV=8 path from PR #1987: defer because it trails PR #1855 and tightens eval time
 - Mamba/SSM branches: interesting research, not competitive with the current transformer frontier yet
 - PPM-D / byte-mixture lines: defer until the C2 interpretation is settled
