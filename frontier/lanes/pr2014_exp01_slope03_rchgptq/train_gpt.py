@@ -3110,12 +3110,27 @@ def _compressed_code_size(code):
     import brotli
     code_raw = code.encode("utf-8")
     try:
-        minified = subprocess.run(
-            ["pyminify", "--no-rename-locals", "--no-hoist-literals", "--remove-literal-statements", "--remove-asserts", "--prefer-single-line", "-"],
-            input=code_raw, capture_output=True, check=True,
-        ).stdout
-    except (FileNotFoundError, subprocess.CalledProcessError):
-        minified = code_raw
+        import python_minifier
+
+        minified = python_minifier.minify(
+            code,
+            remove_literal_statements=True,
+            remove_annotations=False,
+            remove_pass=True,
+            remove_asserts=True,
+            combine_imports=True,
+            hoist_literals=False,
+            rename_locals=False,
+            rename_globals=False,
+        ).encode("utf-8")
+    except Exception:
+        try:
+            minified = subprocess.run(
+                ["pyminify", "--no-rename-locals", "--no-hoist-literals", "--remove-literal-statements", "--remove-asserts", "--prefer-single-line", "-"],
+                input=code_raw, capture_output=True, check=True,
+            ).stdout
+        except (FileNotFoundError, subprocess.CalledProcessError):
+            minified = code_raw
     compressed = brotli.compress(minified, quality=11)
     encoded = base64.b85encode(compressed)
     wrapper = b"import brotli as B,base64 as b\nexec(B.decompress(b.b85decode(\"" + encoded + b"\")))\n"

@@ -86,6 +86,112 @@ Promote only if:
 - GPTQ timing is stable
 - no score-before-update or CaseOps byte-accounting behavior changes
 
+## Size Rescue
+
+If a completed run is only slightly over the `16,000,000` byte cap, first install
+the code minifier and re-run packaging from the saved full-precision checkpoint:
+
+```bash
+cd /workspace/parameter-golf
+source /workspace/pr2014_data.env
+source .venv/bin/activate
+python -m pip install python-minifier
+
+RUN_ROOT=/workspace/runs/pr2014_exp01_seed42 \
+NPROC_PER_NODE=1 \
+SEEDS="42" \
+QUANTIZE_ONLY=1 \
+TTT_ENABLED=0 \
+COMPRESSOR=pergroup \
+bash frontier/lanes/pr2014_exp01_slope03_rchgptq/run_8xh100.sh
+```
+
+Use the same `RUN_ROOT` that contains `seed_42/final_model.pt`; otherwise
+`QUANTIZE_ONLY=1` cannot find the checkpoint.
+
+If the package is still over budget, repackage with the size-safe overlay:
+
+```bash
+cd /workspace/parameter-golf
+source /workspace/pr2014_data.env
+source .venv/bin/activate
+
+RUN_ROOT=/workspace/runs/pr2014_exp01_seed42 \
+CONFIG_PATH=frontier/lanes/pr2014_exp01_slope03_rchgptq/configs/fit16mb.env \
+NPROC_PER_NODE=1 \
+SEEDS="42" \
+QUANTIZE_ONLY=1 \
+TTT_ENABLED=0 \
+COMPRESSOR=pergroup \
+bash frontier/lanes/pr2014_exp01_slope03_rchgptq/run_8xh100.sh
+```
+
+This disables only `AWQ_LITE_GROUP_TOP_K`; if BPB regresses materially, reject
+the size-safe artifact rather than promoting it.
+
+## Eval-Time Rescue
+
+If the final TTT eval is slightly over `600s`, do not retrain first. Reuse the
+saved quantized artifact and run eval-only with a shorter TTT window:
+
+```bash
+cd /workspace/parameter-golf
+source /workspace/pr2014_data.env
+source .venv/bin/activate
+
+RUN_ROOT=/workspace/runs/pr2014_exp01_seed42 \
+CONFIG_PATH=frontier/lanes/pr2014_exp01_slope03_rchgptq/configs/fasteval2816.env \
+NPROC_PER_NODE=8 \
+SEEDS="42" \
+TTT_EVAL_ONLY=1 \
+COMPRESSOR=pergroup \
+bash frontier/lanes/pr2014_exp01_slope03_rchgptq/run_8xh100.sh
+```
+
+If `2816` still exceeds the budget, use the stronger `2560` fallback:
+
+```bash
+RUN_ROOT=/workspace/runs/pr2014_exp01_seed42 \
+CONFIG_PATH=frontier/lanes/pr2014_exp01_slope03_rchgptq/configs/fasteval2560.env \
+NPROC_PER_NODE=8 \
+SEEDS="42" \
+TTT_EVAL_ONLY=1 \
+COMPRESSOR=pergroup \
+bash frontier/lanes/pr2014_exp01_slope03_rchgptq/run_8xh100.sh
+```
+
+If the run is both over size and over eval time, use the combined safe overlay.
+First repackage the saved full-precision checkpoint:
+
+```bash
+RUN_ROOT=/workspace/runs/pr2014_exp01_seed42 \
+CONFIG_PATH=frontier/lanes/pr2014_exp01_slope03_rchgptq/configs/submission_safe.env \
+NPROC_PER_NODE=8 \
+SEEDS="42" \
+QUANTIZE_ONLY=1 \
+TTT_ENABLED=0 \
+COMPRESSOR=pergroup \
+bash frontier/lanes/pr2014_exp01_slope03_rchgptq/run_8xh100.sh
+```
+
+Then run TTT eval-only on the newly written quantized artifact:
+
+```bash
+RUN_ROOT=/workspace/runs/pr2014_exp01_seed42 \
+CONFIG_PATH=frontier/lanes/pr2014_exp01_slope03_rchgptq/configs/submission_safe.env \
+NPROC_PER_NODE=8 \
+SEEDS="42" \
+TTT_EVAL_ONLY=1 \
+COMPRESSOR=pergroup \
+bash frontier/lanes/pr2014_exp01_slope03_rchgptq/run_8xh100.sh
+```
+
+If the combined `2816` overlay still exceeds `600s`, repeat those two commands
+with `configs/submission_safe2560.env`.
+
+For official timing, run eval-only with `NPROC_PER_NODE=8`; a 1-GPU eval-only
+run is useful for debugging but is not comparable to the leaderboard budget.
+
 If exp01 is neutral/positive on 1-GPU, run one 8xH100 seed:
 
 ```bash
