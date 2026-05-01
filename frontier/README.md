@@ -22,6 +22,7 @@ Layout:
 - `lanes/pr1787/`: frozen reproduction lane for the previous clean frontier control
 - `lanes/pr1855/`: frozen reproduction lane for the current accepted leaderboard target
 - `lanes/pr2014/`: frozen reproduction lane for the current strongest clean open frontier target
+- `lanes/pr2014_exp01_slope03_rchgptq/`: first controlled #2014 improvement lane
 - `workdirs/`: untracked outputs for local and cloud runs
 
 Rules:

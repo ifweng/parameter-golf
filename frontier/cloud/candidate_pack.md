@@ -92,10 +92,36 @@ Expected envelope:
 Purpose:
 - test cheap changes that should not disturb compliance or model shape
 
+Lane:
+- `frontier/lanes/pr2014_exp01_slope03_rchgptq/README.md`
+
 Target deltas:
 - LeakyReLU-square negative slope `0.3`
 - GPTQ reverse-Cholesky speed/compliance implementation
-- stricter GPTQ reserve accounting, likely `8s` to `12s` in final confirmation
+
+Cheap comparison commands:
+
+```bash
+source /workspace/pr2014_data.env
+NPROC_PER_NODE=1 \
+SEEDS="42" \
+MAX_WALLCLOCK_SECONDS=300 \
+TTT_ENABLED=0 \
+COMPRESSOR=brotli \
+RUN_ROOT=/workspace/runs/pr2014_baseline_quant_smoke \
+bash frontier/lanes/pr2014/run_8xh100.sh
+```
+
+```bash
+source /workspace/pr2014_data.env
+NPROC_PER_NODE=1 \
+SEEDS="42" \
+MAX_WALLCLOCK_SECONDS=300 \
+TTT_ENABLED=0 \
+COMPRESSOR=brotli \
+RUN_ROOT=/workspace/runs/pr2014_exp01_quant_smoke \
+bash frontier/lanes/pr2014_exp01_slope03_rchgptq/run_8xh100.sh
+```
 
 Expected envelope:
 - target score: must beat our internal #2014 reproduction on post-TTT BPB, or preserve BPB while materially improving timing/compliance margin

@@ -11,14 +11,15 @@ Ordered to maximize signal before cloud spend.
 
 ## Next
 
-1. Create config overlays or separate lanes for low-byte #2014 deltas:
+1. Run `frontier/lanes/pr2014_exp01_slope03_rchgptq` as the first low-byte #2014 delta lane:
    - PR #1948 reverse-Cholesky GPTQ
    - PR #1948 LeakyReLU-square slope `0.3`
+2. Create later overlays only after exp01 has a clean baseline comparison:
    - stricter GPTQ reserve values, likely `8s` or `12s`
    - short-doc TTT schedule variants
    - progressive 3k context schedule variants
-2. Validate legality boundaries in code comments, metrics summaries, and the experiment ledger.
-3. Promote only one to three candidates to full 8xH100 confirmation.
+3. Validate legality boundaries in code comments, metrics summaries, and the experiment ledger.
+4. Promote only one to three candidates to full 8xH100 confirmation.
 
 ## After the mainline is stable
 
