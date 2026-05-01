@@ -28,6 +28,8 @@ TOKENIZER = (
 )
 SUBMISSION = UPSTREAM / "submission.json"
 CONFIG = LANE_DIR / "configs" / "pr1855_exp01.env"
+EXP02_CONFIG = LANE_DIR / "configs" / "exp02_2060_retune.env"
+EXP02_TTT_CONFIG = LANE_DIR / "configs" / "exp02_tttlocal080_only.env"
 README = LANE_DIR / "README.md"
 
 
@@ -137,6 +139,22 @@ def check_config_values() -> None:
         if f'{key}:-{value}' not in text:
             fail(f"config missing default {key}={value}")
 
+    exp02_text = EXP02_CONFIG.read_text(encoding="utf-8")
+    exp02_required = {
+        "MATRIX_LR": "0.028",
+        "LQER_RANK": "2",
+        "LQER_ASYM_GROUP": "32",
+        "LQER_TOP_K": "4",
+        "TTT_LOCAL_LR_MULT": "0.80",
+    }
+    for key, value in exp02_required.items():
+        if f'export {key}="{value}"' not in exp02_text:
+            fail(f"exp02 config missing forced {key}={value}")
+
+    exp02_ttt_text = EXP02_TTT_CONFIG.read_text(encoding="utf-8")
+    if 'export TTT_LOCAL_LR_MULT="0.80"' not in exp02_ttt_text:
+        fail("exp02 TTT-only config missing forced TTT_LOCAL_LR_MULT=0.80")
+
 
 def check_static_code_paths() -> None:
     require_text(TRAIN, "caseops_enabled")
@@ -167,7 +185,17 @@ def check_static_code_paths() -> None:
 
 
 def main() -> None:
-    for path in [TRAIN, PREP, LOSSLESS, TOKENIZER, SUBMISSION, CONFIG, README]:
+    for path in [
+        TRAIN,
+        PREP,
+        LOSSLESS,
+        TOKENIZER,
+        SUBMISSION,
+        CONFIG,
+        EXP02_CONFIG,
+        EXP02_TTT_CONFIG,
+        README,
+    ]:
         require_file(path)
     check_submission_metrics()
     check_caseops_roundtrip()

@@ -16,13 +16,14 @@ Ordered to maximize signal before cloud spend.
    - `PREQUANT_ONLY=1`, `MAX_WALLCLOCK_SECONDS=120`, `COMPRESSOR=brotli`
 2. Run one full seed 42 on 8xH100 and compare post-TTT BPB, artifact bytes, and eval time against reproduced PR1855.
 3. If seed 42 is healthy, run three seeds: `42 0 1234`.
-4. Only after reproduction, test the PR #2060 retune as a config-only A/B:
+4. Only after reproduction, test the PR #2060 retune as a config-only A/B using `configs/exp02_2060_retune.env`:
    - `MATRIX_LR=0.028`
    - `LQER_RANK=2`
    - `LQER_ASYM_GROUP=32`
    - `LQER_TOP_K=4`
    - `TTT_LOCAL_LR_MULT=0.80`
-5. Validate legality boundaries in code comments, metrics summaries, and the experiment ledger.
+5. If a #2101 artifact already exists, first test the cheap TTT-only component using `configs/exp02_tttlocal080_only.env`, `TTT_EVAL_ONLY=1`, and `ARTIFACT_ROOT` pointing at the existing artifact run.
+6. Validate legality boundaries in code comments, metrics summaries, and the experiment ledger.
 
 ## After the mainline is stable
 

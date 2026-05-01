@@ -16,6 +16,7 @@ DATA_DIR="${DATA_DIR:-$REPO_ROOT/data}"
 CASEOPS_DATA_PATH="${CASEOPS_DATA_PATH:-$DATA_DIR/datasets/fineweb10B_sp8192_caseops/datasets/datasets/fineweb10B_sp8192_lossless_caps_caseops_v1_reserved}"
 TOKENIZER_PATH="${TOKENIZER_PATH:-$LANE_DIR/upstream/tokenizers/fineweb_8192_bpe_lossless_caps_caseops_v1_reserved.model}"
 RUN_ROOT="${RUN_ROOT:-$REPO_ROOT/frontier/workdirs/cloud/pr1855-exp01-$(date -u +%Y%m%dT%H%M%SZ)}"
+ARTIFACT_ROOT="${ARTIFACT_ROOT:-$RUN_ROOT}"
 
 if [[ ! -f "$LANE_DIR/upstream/train_gpt.py" ]]; then
   echo "missing upstream train_gpt.py at $LANE_DIR/upstream/train_gpt.py" >&2
@@ -51,6 +52,7 @@ echo "PR1855 Exp01 AWQ-lite + AsymLogit lane"
 echo "repo_root=$REPO_ROOT"
 echo "lane_dir=$LANE_DIR"
 echo "run_root=$RUN_ROOT"
+echo "artifact_root=$ARTIFACT_ROOT"
 echo "caseops_data_path=$CASEOPS_DATA_PATH"
 echo "tokenizer_path=$TOKENIZER_PATH"
 echo "nproc_per_node=$NPROC_PER_NODE"
@@ -58,7 +60,7 @@ echo "seeds=$SEEDS"
 echo "compressor=$COMPRESSOR"
 
 for seed in $SEEDS; do
-  ARTIFACT_DIR="$RUN_ROOT/seed_${seed}"
+  ARTIFACT_DIR="$ARTIFACT_ROOT/seed_${seed}"
   mkdir -p "$ARTIFACT_DIR"
   LOG_PATH="$RUN_ROOT/train_seed${seed}.log"
 

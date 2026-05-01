@@ -100,31 +100,39 @@ Expected envelope:
 - eval time: about `416s` to `526s`
 - promotion gate: use only as a regression/control lane now that #1855 is official top and #2014 is the open frontier
 
-### Candidate 1: Small PR1855 Exp01 follow-up A/Bs
+### Candidate 1: PR1855 Exp02 #2060 retune on #2101
 
 Purpose:
-- test only cheap same-family knobs after Candidate 0 reproduces cleanly
+- improve beyond the #2101 reproduction using the strongest low-risk env-only retune found in PR #2060
 
 Lane:
 - start from `frontier/lanes/pr1855_exp01_awqlite_asymlogit/README.md`
 
 Target deltas:
 - config-only retune from PR #2060: `MATRIX_LR=0.028`, `LQER_RANK=2`, `LQER_ASYM_GROUP=32`, `LQER_TOP_K=4`, `TTT_LOCAL_LR_MULT=0.80`
-- optional `GRAD_CENTRALIZE=1` single-seed A/B only after the reproduction is stable
-- optional tiny `LABEL_SMOOTH` A/B only if gradient centralization is neutral or positive
+- keep #2101 TTT phasing for the first run so the A/B isolates these five knobs
 
-Cheap comparison commands:
+Full seed-42 A/B:
 
 ```bash
 source /workspace/pr1855_exp01_data.env
+CONFIG_PATH=frontier/lanes/pr1855_exp01_awqlite_asymlogit/configs/exp02_2060_retune.env \
 NPROC_PER_NODE=8 \
 SEEDS="42" \
-MATRIX_LR=0.028 \
-LQER_RANK=2 \
-LQER_ASYM_GROUP=32 \
-LQER_TOP_K=4 \
-TTT_LOCAL_LR_MULT=0.80 \
-RUN_ROOT=/workspace/runs/pr1855_exp01_lqer_g32_top4_seed42 \
+RUN_ROOT=/workspace/runs/pr1855_exp02_2060retune_seed42 \
+bash frontier/lanes/pr1855_exp01_awqlite_asymlogit/run_8xh100.sh
+```
+
+Cheapest TTT-only probe if Candidate 0 already produced an artifact:
+
+```bash
+source /workspace/pr1855_exp01_data.env
+CONFIG_PATH=frontier/lanes/pr1855_exp01_awqlite_asymlogit/configs/exp02_tttlocal080_only.env \
+ARTIFACT_ROOT=/workspace/runs/pr1855_exp01_seed42 \
+RUN_ROOT=/workspace/runs/pr1855_exp02_tttlocal080_seed42 \
+TTT_EVAL_ONLY=1 \
+NPROC_PER_NODE=8 \
+SEEDS="42" \
 bash frontier/lanes/pr1855_exp01_awqlite_asymlogit/run_8xh100.sh
 ```
 

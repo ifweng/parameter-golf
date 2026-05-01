@@ -82,6 +82,39 @@ RUN_ROOT=/workspace/runs/pr1855_exp01_3seed \
 bash frontier/lanes/pr1855_exp01_awqlite_asymlogit/run_8xh100.sh
 ```
 
+## Exp02: Improve Beyond #2101
+
+The first improvement attempt is a #2060-style five-knob retune on top of the #2101 source:
+
+```bash
+source /workspace/pr1855_exp01_data.env
+CONFIG_PATH=frontier/lanes/pr1855_exp01_awqlite_asymlogit/configs/exp02_2060_retune.env \
+NPROC_PER_NODE=8 \
+SEEDS="42" \
+RUN_ROOT=/workspace/runs/pr1855_exp02_2060retune_seed42 \
+bash frontier/lanes/pr1855_exp01_awqlite_asymlogit/run_8xh100.sh
+```
+
+This forces:
+- `MATRIX_LR=0.028`
+- `LQER_RANK=2`
+- `LQER_ASYM_GROUP=32`
+- `LQER_TOP_K=4`
+- `TTT_LOCAL_LR_MULT=0.80`
+
+If a #2101 artifact already exists, test the cheapest TTT-only component first:
+
+```bash
+source /workspace/pr1855_exp01_data.env
+CONFIG_PATH=frontier/lanes/pr1855_exp01_awqlite_asymlogit/configs/exp02_tttlocal080_only.env \
+ARTIFACT_ROOT=/workspace/runs/pr1855_exp01_seed42 \
+RUN_ROOT=/workspace/runs/pr1855_exp02_tttlocal080_seed42 \
+TTT_EVAL_ONLY=1 \
+NPROC_PER_NODE=8 \
+SEEDS="42" \
+bash frontier/lanes/pr1855_exp01_awqlite_asymlogit/run_8xh100.sh
+```
+
 ## Promotion Criteria
 
 Promote only if:
