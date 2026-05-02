@@ -141,6 +141,39 @@ Expected envelope:
 - artifact: should remain below `16,000,000` bytes
 - risk: low to medium because the artifact margin is only about `21KB` in the reference run
 
+### Candidate 2: Novel Loss-Gated TTT on #2101
+
+Purpose:
+- test an original legal eval-time adaptation rule rather than another copied stack
+- reduce harmful LoRA updates on easy chunks by updating only from already-scored high-loss chunks
+
+Lane:
+- `frontier/lanes/pr1855_exp01_awqlite_asymlogit/README.md`
+
+Mechanism:
+- after `_accumulate_bpb(...)`, compute per-document chunk loss
+- keep documents above `mean + z * std` among active documents, with a minimum kept fraction
+- default experiment: `TTT_LOSS_GATE_Z=-0.25`, `TTT_LOSS_GATE_MIN_FRAC=0.35`, `TTT_LOSS_GATE_WARMUP_CHUNKS=1`
+
+Cheapest eval-only command if a #2101 artifact exists:
+
+```bash
+source /workspace/pr1855_exp01_data.env
+CONFIG_PATH=frontier/lanes/pr1855_exp01_awqlite_asymlogit/configs/exp03_lossgated_ttt.env \
+ARTIFACT_ROOT=/workspace/runs/pr1855_exp01_seed42 \
+RUN_ROOT=/workspace/runs/pr1855_exp03_lossgated_ttt_seed42 \
+TTT_EVAL_ONLY=1 \
+NPROC_PER_NODE=8 \
+SEEDS="42" \
+bash frontier/lanes/pr1855_exp01_awqlite_asymlogit/run_8xh100.sh
+```
+
+Promotion gate:
+- positive means post-TTT BPB improves, not just eval time
+- eval time must remain under `600s`
+- logs should show `lg:kept/total` so the gate is actually active
+- if positive, stack with Exp02 using `configs/exp03_2060_lossgated_ttt.env`
+
 ### Stopped: PR #2014 / reverse-Cholesky / slope 0.3 lane
 
 Purpose:

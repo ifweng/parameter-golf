@@ -95,6 +95,51 @@ RUN_ROOT=/workspace/runs/pr1855_exp02_2060retune_seed42 \
 bash frontier/lanes/pr1855_exp01_awqlite_asymlogit/run_8xh100.sh
 ```
 
+## Exp03: Novel Loss-Gated TTT
+
+This is our first original method in this lane. It keeps score-before-update legality:
+
+1. Score and accumulate the chunk into BPB normally.
+2. Look at the already-scored per-document chunk loss.
+3. Update LoRA only on higher-loss documents in the batch.
+
+Hypothesis: easy chunks are already well modeled and can inject noisy TTT gradients; high-loss chunks carry more useful adaptation signal.
+
+Cheapest eval-only test if a #2101 artifact exists:
+
+```bash
+source /workspace/pr1855_exp01_data.env
+CONFIG_PATH=frontier/lanes/pr1855_exp01_awqlite_asymlogit/configs/exp03_lossgated_ttt.env \
+ARTIFACT_ROOT=/workspace/runs/pr1855_exp01_seed42 \
+RUN_ROOT=/workspace/runs/pr1855_exp03_lossgated_ttt_seed42 \
+TTT_EVAL_ONLY=1 \
+NPROC_PER_NODE=8 \
+SEEDS="42" \
+bash frontier/lanes/pr1855_exp01_awqlite_asymlogit/run_8xh100.sh
+```
+
+Full seed-42 run:
+
+```bash
+source /workspace/pr1855_exp01_data.env
+CONFIG_PATH=frontier/lanes/pr1855_exp01_awqlite_asymlogit/configs/exp03_lossgated_ttt.env \
+NPROC_PER_NODE=8 \
+SEEDS="42" \
+RUN_ROOT=/workspace/runs/pr1855_exp03_lossgated_ttt_full_seed42 \
+bash frontier/lanes/pr1855_exp01_awqlite_asymlogit/run_8xh100.sh
+```
+
+If Exp03 is neutral or positive, stack it on Exp02:
+
+```bash
+source /workspace/pr1855_exp01_data.env
+CONFIG_PATH=frontier/lanes/pr1855_exp01_awqlite_asymlogit/configs/exp03_2060_lossgated_ttt.env \
+NPROC_PER_NODE=8 \
+SEEDS="42" \
+RUN_ROOT=/workspace/runs/pr1855_exp03_2060_lossgated_ttt_seed42 \
+bash frontier/lanes/pr1855_exp01_awqlite_asymlogit/run_8xh100.sh
+```
+
 This forces:
 - `MATRIX_LR=0.028`
 - `LQER_RANK=2`

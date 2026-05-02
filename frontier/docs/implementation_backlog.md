@@ -23,7 +23,9 @@ Ordered to maximize signal before cloud spend.
    - `LQER_TOP_K=4`
    - `TTT_LOCAL_LR_MULT=0.80`
 5. If a #2101 artifact already exists, first test the cheap TTT-only component using `configs/exp02_tttlocal080_only.env`, `TTT_EVAL_ONLY=1`, and `ARTIFACT_ROOT` pointing at the existing artifact run.
-6. Validate legality boundaries in code comments, metrics summaries, and the experiment ledger.
+6. Test the novel loss-gated TTT rule using `configs/exp03_lossgated_ttt.env`, preferably as `TTT_EVAL_ONLY=1` against a saved #2101 artifact first.
+7. If Exp03 is neutral or positive, test `configs/exp03_2060_lossgated_ttt.env` as the stacked candidate.
+8. Validate legality boundaries in code comments, metrics summaries, and the experiment ledger.
 
 ## After the mainline is stable
 

@@ -303,6 +303,13 @@ class Hyperparameters:
     ttt_beta1 = float(os.environ.get("TTT_BETA1", 0))
     ttt_beta2 = float(os.environ.get("TTT_BETA2", 0.99))
     ttt_mask = os.environ.get("TTT_MASK", "no_qv").strip().lower()
+    # Exp03: score-first hard-example TTT gate. After a chunk has already been
+    # scored and counted, optionally update LoRA only on higher-loss documents.
+    # This is off by default so #2101 reproduction remains byte-behavioral.
+    ttt_loss_gate_enabled = bool(int(os.environ.get("TTT_LOSS_GATE_ENABLED", "0")))
+    ttt_loss_gate_z = float(os.environ.get("TTT_LOSS_GATE_Z", "-0.25"))
+    ttt_loss_gate_min_frac = float(os.environ.get("TTT_LOSS_GATE_MIN_FRAC", "0.35"))
+    ttt_loss_gate_warmup_chunks = int(os.environ.get("TTT_LOSS_GATE_WARMUP_CHUNKS", "1"))
     _ttt_q_default = "1"
     _ttt_v_default = "1"
     if ttt_mask in ("", "all", "baseline_all"):
@@ -3199,6 +3206,32 @@ def _loss_bpb_from_sums(loss_sum, token_count, byte_sum):
     return val_loss, val_bpb
 
 
+def _ttt_loss_gate_mask(h, per_doc_loss, activate_chunk_mask, chunk_idx):
+    if (
+        not h.ttt_loss_gate_enabled
+        or chunk_idx < h.ttt_loss_gate_warmup_chunks
+    ):
+        return activate_chunk_mask
+    active = activate_chunk_mask > 0
+    active_count = int(active.sum().item())
+    if active_count <= 1:
+        return activate_chunk_mask
+    detached = per_doc_loss.detach()
+    active_losses = detached[active]
+    mean = active_losses.mean()
+    std = active_losses.std(unbiased=False)
+    threshold = mean + h.ttt_loss_gate_z * std
+    keep = active & (detached >= threshold)
+    min_keep = max(1, math.ceil(active_count * h.ttt_loss_gate_min_frac))
+    min_keep = min(active_count, min_keep)
+    if int(keep.sum().item()) < min_keep:
+        scored = torch.where(active, detached, torch.full_like(detached, -float("inf")))
+        _, idx = torch.topk(scored, k=min_keep)
+        keep = torch.zeros_like(active)
+        keep[idx] = True
+    return keep.to(dtype=activate_chunk_mask.dtype)
+
+
 def _add_to_counter(path, delta):
     try:
         with open(path, "r+b") as f:
@@ -3398,6 +3431,8 @@ def eval_val_ttt_phased(h, base_model, device, val_data, forward_ttt_train):
 
     reusable_opt = _build_opt(reusable_lora)
     local_scored_docs = []
+    loss_gate_kept = 0
+    loss_gate_total = 0
     global_ttt_done = prefix_doc_limit == 0
     try:
       while True:
@@ -3505,6 +3540,7 @@ def eval_val_ttt_phased(h, base_model, device, val_data, forward_ttt_train):
                 )
             if needs_train:
                 activate_chunk_mask = (num_chunks_t - 1 > ci).float()
+                update_mask = None
                 for gi in range(h.ttt_grad_steps):
                     if gi > 0:
                         with torch.autocast(device_type="cuda", dtype=torch.bfloat16):
@@ -3512,8 +3548,15 @@ def eval_val_ttt_phased(h, base_model, device, val_data, forward_ttt_train):
                     per_doc = per_tok_loss[
                         :, chunk_offset : chunk_offset + chunk_size
                     ].mean(dim=-1)
+                    if update_mask is None:
+                        update_mask = _ttt_loss_gate_mask(
+                            h, per_doc, activate_chunk_mask, ci
+                        )
+                        if h.ttt_loss_gate_enabled:
+                            loss_gate_kept += int(update_mask.sum().item())
+                            loss_gate_total += int(activate_chunk_mask.sum().item())
                     cur_opt.zero_grad(set_to_none=True)
-                    (per_doc * activate_chunk_mask).sum().backward()
+                    (per_doc * update_mask).sum().backward()
                     cur_opt.step()
             else:
                 del per_tok_loss
@@ -3538,6 +3581,10 @@ def eval_val_ttt_phased(h, base_model, device, val_data, forward_ttt_train):
                 f"ttp: b{batch_num}/{queue_len} bl:{b_loss:.4f} bb:{b_bpb:.4f} "
                 f"rl:{r_loss:.4f} rb:{r_bpb:.4f} dl:{min(doc_lens)}-{max(doc_lens)} "
                 f"gd:{int(global_ttt_done)}"
+                + (
+                    f" lg:{loss_gate_kept}/{max(loss_gate_total, 1)}"
+                    if h.ttt_loss_gate_enabled else ""
+                )
             )
         if not global_ttt_done:
             local_scored_docs.extend(

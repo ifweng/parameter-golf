@@ -30,6 +30,8 @@ SUBMISSION = UPSTREAM / "submission.json"
 CONFIG = LANE_DIR / "configs" / "pr1855_exp01.env"
 EXP02_CONFIG = LANE_DIR / "configs" / "exp02_2060_retune.env"
 EXP02_TTT_CONFIG = LANE_DIR / "configs" / "exp02_tttlocal080_only.env"
+EXP03_CONFIG = LANE_DIR / "configs" / "exp03_lossgated_ttt.env"
+EXP03_STACKED_CONFIG = LANE_DIR / "configs" / "exp03_2060_lossgated_ttt.env"
 README = LANE_DIR / "README.md"
 
 
@@ -155,6 +157,17 @@ def check_config_values() -> None:
     if 'export TTT_LOCAL_LR_MULT="0.80"' not in exp02_ttt_text:
         fail("exp02 TTT-only config missing forced TTT_LOCAL_LR_MULT=0.80")
 
+    for path in [EXP03_CONFIG, EXP03_STACKED_CONFIG]:
+        text = path.read_text(encoding="utf-8")
+        for key, value in {
+            "TTT_LOSS_GATE_ENABLED": "1",
+            "TTT_LOSS_GATE_Z": "-0.25",
+            "TTT_LOSS_GATE_MIN_FRAC": "0.35",
+            "TTT_LOSS_GATE_WARMUP_CHUNKS": "1",
+        }.items():
+            if f'export {key}="{value}"' not in text:
+                fail(f"{path.name} missing forced {key}={value}")
+
 
 def check_static_code_paths() -> None:
     require_text(TRAIN, "caseops_enabled")
@@ -168,6 +181,9 @@ def check_static_code_paths() -> None:
     require_text(TRAIN, "ASYM_LOGIT_RESCALE")
     require_text(TRAIN, "GRAD_CENTRALIZE")
     require_text(TRAIN, "LABEL_SMOOTH")
+    require_text(TRAIN, "TTT_LOSS_GATE_ENABLED")
+    require_text(TRAIN, "_ttt_loss_gate_mask")
+    require_text(TRAIN, "lg:{loss_gate_kept}")
     require_text(TRAIN, "COMPRESSOR")
     require_text(TRAIN, "pergroup")
     require_text(TRAIN, "lrzip")
@@ -194,6 +210,8 @@ def main() -> None:
         CONFIG,
         EXP02_CONFIG,
         EXP02_TTT_CONFIG,
+        EXP03_CONFIG,
+        EXP03_STACKED_CONFIG,
         README,
     ]:
         require_file(path)
