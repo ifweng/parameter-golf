@@ -60,7 +60,49 @@ Critical prerequisite:
 - a prepared CaseOps dataset with `fineweb_val_bytes_*.bin` sidecars
 - `lrzip` installed on the cloud image if `COMPRESSOR=pergroup`
 
-### Candidate 1: Novel PR1953 Entropy-Adaptive Token Tilt
+### Candidate 1: PR1953 Exp01 Weighted TTT
+
+Purpose:
+- improve the main observed gap: local TTT recovery
+- keep model architecture, training recipe, quantization, and artifact size unchanged
+
+Lane:
+- `frontier/lanes/pr1953_exp01_weighted_ttt/`
+
+Mechanism:
+- after score accumulation, compute detached per-doc chunk losses
+- weight local LoRA TTT updates continuously by relative chunk difficulty
+- default: `alpha=0.5`, `min=0.5`, `max=1.75`, `ema=0.98`
+
+Cheapest eval-only command if a PR1953 seed-42 artifact exists:
+
+```bash
+source /workspace/pr1953_data.env
+TTT_EVAL_ONLY=1 \
+ARTIFACT_ROOT=/workspace/runs/pr1953_seed42 \
+RUN_ROOT=/workspace/runs/pr1953_exp01_weighted_evalonly_seed42 \
+NPROC_PER_NODE=8 \
+SEEDS="42" \
+bash frontier/lanes/pr1953_exp01_weighted_ttt/run_8xh100.sh
+```
+
+Full seed-42 command:
+
+```bash
+source /workspace/pr1953_data.env
+NPROC_PER_NODE=8 \
+SEEDS="42" \
+RUN_ROOT=/workspace/runs/pr1953_exp01_weighted_seed42 \
+bash frontier/lanes/pr1953_exp01_weighted_ttt/run_8xh100.sh
+```
+
+Promotion gate:
+- seed 42 must beat reproduced PR #1953 seed 42 post-TTT BPB
+- logs must show `ttt_loss_weighted:` and `lw:`
+- eval must remain under `600s`
+- artifact must remain under `16,000,000` bytes
+
+### Candidate 2: Novel PR1953 Entropy-Adaptive Token Tilt
 
 Purpose:
 - add a no-artifact, strictly causal score-time correction on top of PR #1953
@@ -70,7 +112,7 @@ Lane:
 - planned: `frontier/lanes/pr1953_exp01_entropy_tilt/`
 
 Promotion gate:
-- seed 42 must beat reproduced PR #1953 seed 42 post-TTT BPB
+- only open after Candidate 1 is tested
 - no within-word, word-start, agreement, or target-token-gated channels
 - n-gram work must be inside the eval timer
 - eval must remain under `600s`

@@ -22,6 +22,7 @@ Layout:
 - `lanes/pr1787/`: frozen reproduction lane for the previous clean frontier control
 - `lanes/pr1855/`: frozen reproduction lane for the current accepted leaderboard target
 - `lanes/pr1953/`: frozen clean PR #1953 reproduction lane and new active baseline
+- `lanes/pr1953_exp01_weighted_ttt/`: continuous loss-weighted local TTT experiment on PR #1953
 - `lanes/pr2014/`: frozen reproduction lane for the current strongest clean open frontier target
 - `lanes/pr2014_exp01_slope03_rchgptq/`: first controlled #2014 improvement lane
 - `workdirs/`: untracked outputs for local and cloud runs
