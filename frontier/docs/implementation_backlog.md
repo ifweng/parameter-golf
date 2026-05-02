@@ -5,27 +5,22 @@ Ordered to maximize signal before cloud spend.
 ## Immediate
 
 1. Keep `frontier/lanes/pr1855` frozen as the accepted leaderboard control.
-2. Use `frontier/lanes/pr1855_exp01_awqlite_asymlogit` as the main improvement lane.
-3. Reproduce the PR #2101-style PR1855 improvement before any original deltas.
-4. Treat PR #2014 and `pr2014_exp01_slope03_rchgptq` as stopped unless needed for forensic comparison.
+2. Use `frontier/lanes/pr1953` as the active clean baseline.
+3. Treat the previous PR1855 Exp03 loss-gated TTT result as negative evidence because the observed average score was `1.06076055`, worse than PR #1953 and the intended PR1855-derived target.
+4. Keep `frontier/lanes/pr1855_exp01_awqlite_asymlogit` for forensic comparison only, not as the default route.
+5. Treat PR #2014 and `pr2014_exp01_slope03_rchgptq` as stopped unless needed for forensic comparison.
 
 ## Next
 
-1. Run the PR1855 Exp01 static checker and a cheap smoke:
-   - `python3 frontier/lanes/pr1855_exp01_awqlite_asymlogit/checks/check_pr1855_exp01_lane.py`
+1. Run the PR1953 static checker:
+   - `python3 frontier/lanes/pr1953/checks/check_pr1953_lane.py`
+2. Run a cheap PR1953 smoke:
    - `PREQUANT_ONLY=1`, `MAX_WALLCLOCK_SECONDS=120`, `COMPRESSOR=brotli`
-2. Run one full seed 42 on 8xH100 and compare post-TTT BPB, artifact bytes, and eval time against reproduced PR1855.
-3. If seed 42 is healthy, run three seeds: `42 0 1234`.
-4. Only after reproduction, test the PR #2060 retune as a config-only A/B using `configs/exp02_2060_retune.env`:
-   - `MATRIX_LR=0.028`
-   - `LQER_RANK=2`
-   - `LQER_ASYM_GROUP=32`
-   - `LQER_TOP_K=4`
-   - `TTT_LOCAL_LR_MULT=0.80`
-5. If a #2101 artifact already exists, first test the cheap TTT-only component using `configs/exp02_tttlocal080_only.env`, `TTT_EVAL_ONLY=1`, and `ARTIFACT_ROOT` pointing at the existing artifact run.
-6. Test the novel loss-gated TTT rule using `configs/exp03_lossgated_ttt.env`, preferably as `TTT_EVAL_ONLY=1` against a saved #2101 artifact first.
-7. If Exp03 is neutral or positive, test `configs/exp03_2060_lossgated_ttt.env` as the stacked candidate.
-8. Validate legality boundaries in code comments, metrics summaries, and the experiment ledger.
+3. Run one full PR1953 seed 42 on 8xH100 and compare post-TTT BPB, artifact bytes, and eval time against upstream seed 42.
+4. If seed 42 reproduces directionally, run the three PR1953 seeds: `42 0 1234`.
+5. Create `frontier/lanes/pr1953_exp01_entropy_tilt` only after the frozen baseline reproduces.
+6. First novel experiment: entropy-adaptive causal token-only n-gram tilt with no target-token-gated channels and full-vocab renormalization.
+7. Validate legality boundaries in code comments, metrics summaries, and the experiment ledger before any three-seed novel run.
 
 ## After the mainline is stable
 
@@ -35,8 +30,8 @@ Ordered to maximize signal before cloud spend.
 
 ## Deferred research branches
 
-1. PR #2018 / PR #1967 n-gram tilt:
-   defer because the user does not want it as the base; only reopen as a separate high-risk lane
+1. Fixed-boost PR #2018 / PR #1967 n-gram tilt:
+   use only as a control for the PR1953 entropy-adaptive token-only tilt lane
 2. Mamba/SSM or JEPA/text-diffusion branches:
    useful for a noticeable research implementation, not the first leaderboard push
 3. Alternative reversible tokenization beyond CaseOps:

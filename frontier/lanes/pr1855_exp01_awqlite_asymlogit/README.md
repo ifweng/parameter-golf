@@ -49,6 +49,28 @@ sudo apt-get update
 sudo apt-get install -y lrzip
 ```
 
+## Sourceable Cloud Env
+
+After bootstrapping data, source the lane env:
+
+```bash
+source frontier/lanes/pr1855_exp01_awqlite_asymlogit/configs/cloud_run.env
+```
+
+Default experiment is the novel Exp03 loss-gated TTT full seed-42 run. Switch runs with `PG_EXPERIMENT`:
+
+```bash
+PG_EXPERIMENT=baseline2101 source frontier/lanes/pr1855_exp01_awqlite_asymlogit/configs/cloud_run.env
+PG_EXPERIMENT=exp03_lossgated_ttt_evalonly source frontier/lanes/pr1855_exp01_awqlite_asymlogit/configs/cloud_run.env
+PG_EXPERIMENT=exp03_2060_lossgated_ttt source frontier/lanes/pr1855_exp01_awqlite_asymlogit/configs/cloud_run.env
+```
+
+Then run:
+
+```bash
+bash frontier/lanes/pr1855_exp01_awqlite_asymlogit/run_8xh100.sh
+```
+
 ## Cheap Smoke
 
 ```bash

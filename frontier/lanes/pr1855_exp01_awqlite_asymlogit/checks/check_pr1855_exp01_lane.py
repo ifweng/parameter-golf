@@ -32,6 +32,7 @@ EXP02_CONFIG = LANE_DIR / "configs" / "exp02_2060_retune.env"
 EXP02_TTT_CONFIG = LANE_DIR / "configs" / "exp02_tttlocal080_only.env"
 EXP03_CONFIG = LANE_DIR / "configs" / "exp03_lossgated_ttt.env"
 EXP03_STACKED_CONFIG = LANE_DIR / "configs" / "exp03_2060_lossgated_ttt.env"
+CLOUD_RUN_ENV = LANE_DIR / "configs" / "cloud_run.env"
 README = LANE_DIR / "README.md"
 
 
@@ -168,6 +169,19 @@ def check_config_values() -> None:
             if f'export {key}="{value}"' not in text:
                 fail(f"{path.name} missing forced {key}={value}")
 
+    cloud_text = CLOUD_RUN_ENV.read_text(encoding="utf-8")
+    for needle in [
+        "PG_EXPERIMENT",
+        "baseline2101",
+        "exp02_2060",
+        "exp03_lossgated_ttt",
+        "exp03_lossgated_ttt_evalonly",
+        "exp03_2060_lossgated_ttt",
+        "pr1855_exp01_data.env",
+    ]:
+        if needle not in cloud_text:
+            fail(f"cloud_run.env missing {needle}")
+
 
 def check_static_code_paths() -> None:
     require_text(TRAIN, "caseops_enabled")
@@ -212,6 +226,7 @@ def main() -> None:
         EXP02_TTT_CONFIG,
         EXP03_CONFIG,
         EXP03_STACKED_CONFIG,
+        CLOUD_RUN_ENV,
         README,
     ]:
         require_file(path)

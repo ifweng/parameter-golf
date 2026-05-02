@@ -15,50 +15,66 @@ Compliance reference:
 
 ## Current target hierarchy
 
-### Candidate 0: PR #1855 Exp01 AWQ-lite + AsymLogit
+### Candidate 0: PR #1953 Clean LongCtx NoQV Baseline
 
 Purpose:
-- improve directly from the accepted PR #1855 stack without adopting the PR #2018 n-gram/gated-XSA base
-- reproduce the lowest-risk PR1855-derived upstream improvement from PR #2101 before testing our own deltas
+- reproduce the strongest clean, compact baseline we currently trust before adding novelty
+- use it as the control for no-artifact or eval-only improvements
 
 Lane:
-- `frontier/lanes/pr1855_exp01_awqlite_asymlogit/README.md`
+- `frontier/lanes/pr1953/README.md`
 
 Cheap smoke:
 
 ```bash
-source /workspace/pr1855_exp01_data.env
+source /workspace/pr1953_data.env
 NPROC_PER_NODE=1 \
 SEEDS="42" \
 MAX_WALLCLOCK_SECONDS=120 \
 PREQUANT_ONLY=1 \
 COMPRESSOR=brotli \
-RUN_ROOT=/workspace/runs/pr1855_exp01_prequant_smoke \
-bash frontier/lanes/pr1855_exp01_awqlite_asymlogit/run_8xh100.sh
+RUN_ROOT=/workspace/runs/pr1953_prequant_smoke \
+bash frontier/lanes/pr1953/run_8xh100.sh
 ```
 
 Command:
 
 ```bash
-source /workspace/pr1855_exp01_data.env
+source /workspace/pr1953_data.env
 NPROC_PER_NODE=8 \
 SEEDS="42 0 1234" \
-RUN_ROOT=/workspace/runs/pr1855_exp01_3seed \
-bash frontier/lanes/pr1855_exp01_awqlite_asymlogit/run_8xh100.sh
+RUN_ROOT=/workspace/runs/pr1953_3seed \
+bash frontier/lanes/pr1953/run_8xh100.sh
 ```
 
 Expected envelope:
 - track: `Track B`
-- upstream score: `1.05845438` post-TTT BPB, 3-seed mean
-- upstream loss: `2.31721592` nats, 3-seed mean
-- upstream artifact: about `15,978,063` bytes mean, max `15,978,610`
-- train time: about `592.1s` plus GPTQ Hessian collection within the 600s data-access budget
-- eval time: about `508s` to `520s`
-- promotion gate: beat reproduced PR #1855 on post-TTT BPB while preserving trusted CaseOps byte sidecar accounting, full validation target coverage, BOS-safe SmearGate, score-first TTT, and all budgets intact
+- upstream score: `1.05855370` post-TTT BPB, 3-seed mean
+- upstream loss: `2.31650787` nats, 3-seed mean
+- upstream artifact: about `15,990,177` bytes mean, max `15,992,914`
+- train time: about `596.1s`
+- eval time: about `430s` to `513s`
+- promotion gate: reproduce seed 42 directionally before opening the entropy-adaptive tilt experiment
 
 Critical prerequisite:
 - a prepared CaseOps dataset with `fineweb_val_bytes_*.bin` sidecars
 - `lrzip` installed on the cloud image if `COMPRESSOR=pergroup`
+
+### Candidate 1: Novel PR1953 Entropy-Adaptive Token Tilt
+
+Purpose:
+- add a no-artifact, strictly causal score-time correction on top of PR #1953
+- improve over fixed token-only n-gram tilt by adapting boost strength to prefix-only confidence and model uncertainty
+
+Lane:
+- planned: `frontier/lanes/pr1953_exp01_entropy_tilt/`
+
+Promotion gate:
+- seed 42 must beat reproduced PR #1953 seed 42 post-TTT BPB
+- no within-word, word-start, agreement, or target-token-gated channels
+- n-gram work must be inside the eval timer
+- eval must remain under `600s`
+- artifact must remain under `16,000,000` bytes
 
 ### Control: PR #1855 accepted frontier reproduction
 
@@ -100,10 +116,11 @@ Expected envelope:
 - eval time: about `416s` to `526s`
 - promotion gate: use only as a regression/control lane now that #1855 is official top and #2014 is the open frontier
 
-### Candidate 1: PR1855 Exp02 #2060 retune on #2101
+### Deferred: PR1855 Exp02 #2060 Retune On #2101
 
 Purpose:
-- improve beyond the #2101 reproduction using the strongest low-risk env-only retune found in PR #2060
+- preserve the prior queue for forensic comparison only
+- do not spend fresh cloud budget here before PR #1953 reproduces
 
 Lane:
 - start from `frontier/lanes/pr1855_exp01_awqlite_asymlogit/README.md`
@@ -137,15 +154,18 @@ bash frontier/lanes/pr1855_exp01_awqlite_asymlogit/run_8xh100.sh
 ```
 
 Expected envelope:
-- target score: must beat Candidate 0 on post-TTT BPB by enough to justify three-seed confirmation
+- target score: must beat the old #2101 reproduction on post-TTT BPB by enough to justify three-seed confirmation
 - artifact: should remain below `16,000,000` bytes
 - risk: low to medium because the artifact margin is only about `21KB` in the reference run
 
-### Candidate 2: Novel Loss-Gated TTT on #2101
+### Stopped: Novel Loss-Gated TTT On #2101
 
 Purpose:
-- test an original legal eval-time adaptation rule rather than another copied stack
+- keep the prior novel eval-time adaptation attempt documented as negative evidence
 - reduce harmful LoRA updates on easy chunks by updating only from already-scored high-loss chunks
+
+Reason:
+- observed average score was `1.06076055`, worse than PR #1953 and not worth promoting
 
 Lane:
 - `frontier/lanes/pr1855_exp01_awqlite_asymlogit/README.md`
